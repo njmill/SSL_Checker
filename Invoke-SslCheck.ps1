@@ -196,6 +196,7 @@ $remoteCert = $script:CapturedCertificate
 $now = Get-Date
 # Ignore time validity for chain/trust evaluation; expiration is reported separately.
 $ignoreTimeValidityFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::IgnoreNotTimeValid -bor [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::IgnoreNotTimeNested
+$ignoreTimeStatusFlags = [System.Security.Cryptography.X509Certificates.X509ChainStatusFlags]::NotTimeValid -bor [System.Security.Cryptography.X509Certificates.X509ChainStatusFlags]::NotTimeNested
 
 # Build chain for completeness using only provided intermediates
 $chainForCompleteness = New-Object System.Security.Cryptography.X509Certificates.X509Chain
@@ -210,8 +211,9 @@ if ($script:CapturedChainElements.Count -gt 1) {
 }
 
 $chainComplete = $chainForCompleteness.Build($remoteCert)
-$completenessStatuses = Convert-ChainStatus -Status $chainForCompleteness.ChainStatus
-$hasPartialChain = $chainForCompleteness.ChainStatus | Where-Object { $_.Status -eq [System.Security.Cryptography.X509Certificates.X509ChainStatusFlags]::PartialChain }
+$rawChainStatus = $chainForCompleteness.ChainStatus
+$completenessStatuses = Convert-ChainStatus -Status ($rawChainStatus | Where-Object { ($_.Status -band $ignoreTimeStatusFlags) -eq 0 })
+$hasPartialChain = $rawChainStatus | Where-Object { $_.Status -eq [System.Security.Cryptography.X509Certificates.X509ChainStatusFlags]::PartialChain }
 if ($hasPartialChain) {
     $chainComplete = $false
 }
@@ -221,7 +223,8 @@ $chainForTrust = New-Object System.Security.Cryptography.X509Certificates.X509Ch
 $chainForTrust.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
 $chainForTrust.ChainPolicy.VerificationFlags = $ignoreTimeValidityFlags
 $trusted = $chainForTrust.Build($remoteCert)
-$trustStatuses = Convert-ChainStatus -Status $chainForTrust.ChainStatus
+$rawTrustStatus = $chainForTrust.ChainStatus
+$trustStatuses = Convert-ChainStatus -Status ($rawTrustStatus | Where-Object { ($_.Status -band $ignoreTimeStatusFlags) -eq 0 })
 
 # Expiration checks
 $expired = $remoteCert.NotAfter -lt $now
