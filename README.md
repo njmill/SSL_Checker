@@ -1,6 +1,6 @@
 # TLS Certificate Chain Checker
 
-`Invoke-AkamaiSslCheck.ps1` is a PowerShell utility that helps you spot TLS certificate issues before they impact production. It connects to an HTTPS endpoint, captures the certificate chain that the server presents, and reports on trust, completeness, and validity.
+`Invoke-SslCheck.ps1` is a PowerShell utility that helps you spot TLS certificate issues before they impact production. It connects to an HTTPS endpoint, captures the certificate chain that the server presents, and reports on trust, completeness, and validity.
 
 ## Features
 
@@ -18,17 +18,17 @@
 ## Usage
 
 ```powershell
-# Basic invocation – resolves the hostname and inspects the returned certificate chain
-powershell -ExecutionPolicy Bypass -File .\Invoke-AkamaiSslCheck.ps1 -Hostname origin.example.com
+# Basic invocation â€“ resolves the hostname and inspects the returned certificate chain
+powershell -ExecutionPolicy Bypass -File .\Invoke-SslCheck.ps1 -Hostname origin.example.com
 
 # Connect to a specific IP while sending the hostname as the SNI/Host header
-powershell -ExecutionPolicy Bypass -File .\Invoke-AkamaiSslCheck.ps1 -Hostname origin.example.com -Ip 203.0.113.10
+powershell -ExecutionPolicy Bypass -File .\Invoke-SslCheck.ps1 -Hostname origin.example.com -Ip 203.0.113.10
 
 # Override the default port and timeout
-powershell -ExecutionPolicy Bypass -File .\Invoke-AkamaiSslCheck.ps1 -Hostname origin.example.com -Port 8443 -TimeoutSeconds 5
+powershell -ExecutionPolicy Bypass -File .\Invoke-SslCheck.ps1 -Hostname origin.example.com -Port 8443 -TimeoutSeconds 5
 
 # Capture the summary object for further scripting
-$result = powershell -ExecutionPolicy Bypass -File .\Invoke-AkamaiSslCheck.ps1 -Hostname origin.example.com
+$result = powershell -ExecutionPolicy Bypass -File .\Invoke-SslCheck.ps1 -Hostname origin.example.com
 ```
 
 ## Sample Output
