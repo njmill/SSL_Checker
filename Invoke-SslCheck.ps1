@@ -319,6 +319,24 @@ $textFields = @(
 
 foreach ($field in $textFields) {
     $value = if ([string]::IsNullOrWhiteSpace([string]$field.Value)) { 'None' } else { $field.Value }
+
+    if ($field.Label -eq 'Days Until Expiration' -and -not [string]::IsNullOrWhiteSpace([string]$field.Value)) {
+        $days = 0
+        if ([int]::TryParse([string]$field.Value, [ref]$days)) {
+            $color = [System.ConsoleColor]::Green
+            if ($days -lt 30) {
+                $color = [System.ConsoleColor]::Red
+            }
+            elseif ($days -le 90) {
+                $color = [System.ConsoleColor]::Yellow
+            }
+
+            Write-Host ("{0,-$labelWidth}: " -f $field.Label) -NoNewline
+            Write-Host $value -ForegroundColor $color
+            continue
+        }
+    }
+
     Write-Host ("{0,-$labelWidth}: {1}" -f $field.Label, $value)
 }
 $chainSubjects = @($summary.ChainCertificates)
