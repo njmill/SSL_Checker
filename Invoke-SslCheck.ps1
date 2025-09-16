@@ -194,11 +194,13 @@ if (-not $script:CapturedCertificate) {
 
 $remoteCert = $script:CapturedCertificate
 $now = Get-Date
+# Ignore time validity for chain/trust evaluation; expiration is reported separately.
+$ignoreTimeValidityFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::IgnoreNotTimeValid -bor [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::IgnoreNotTimeNested
 
 # Build chain for completeness using only provided intermediates
 $chainForCompleteness = New-Object System.Security.Cryptography.X509Certificates.X509Chain
 $chainForCompleteness.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
-$chainForCompleteness.ChainPolicy.VerificationFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority
+$chainForCompleteness.ChainPolicy.VerificationFlags = [System.Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority -bor $ignoreTimeValidityFlags
 $chainForCompleteness.ChainPolicy.ExtraStore.Clear()
 
 if ($script:CapturedChainElements.Count -gt 1) {
@@ -217,6 +219,7 @@ if ($hasPartialChain) {
 # Trusted CA check using local machine trust store
 $chainForTrust = New-Object System.Security.Cryptography.X509Certificates.X509Chain
 $chainForTrust.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+$chainForTrust.ChainPolicy.VerificationFlags = $ignoreTimeValidityFlags
 $trusted = $chainForTrust.Build($remoteCert)
 $trustStatuses = Convert-ChainStatus -Status $chainForTrust.ChainStatus
 
