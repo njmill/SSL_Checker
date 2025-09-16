@@ -124,34 +124,69 @@ $validationCallback = {
     return $true
 }
 
-$tcpClient = New-Object System.Net.Sockets.TcpClient
-$asyncResult = $tcpClient.BeginConnect($connectTarget, $Port, $null, $null)
+$availableProtocolNames = [Enum]::GetNames([System.Security.Authentication.SslProtocols])
+$protocolAttempts = @(
+    [pscustomobject]@{ Name = 'SystemDefault'; Protocol = $null; UseDefault = $true }
+)
 
-if (-not $asyncResult.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds))) {
-    $tcpClient.Close()
-    throw "Connection to $connectTarget`:$Port timed out after $TimeoutSeconds seconds."
+if ($availableProtocolNames -contains 'Tls13') {
+    $protocolAttempts += [pscustomobject]@{ Name = 'TLS 1.3'; Protocol = [System.Security.Authentication.SslProtocols]::Tls13; UseDefault = $false }
 }
+$protocolAttempts += [pscustomobject]@{ Name = 'TLS 1.2'; Protocol = [System.Security.Authentication.SslProtocols]::Tls12; UseDefault = $false }
 
-$tcpClient.EndConnect($asyncResult)
+$handshakeSucceeded = $false
+$handshakeErrors = @()
 
-try {
-    $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream(), $false, $validationCallback)
+foreach ($attempt in $protocolAttempts) {
+    $tcpClient = New-Object System.Net.Sockets.TcpClient
+    $asyncResult = $tcpClient.BeginConnect($connectTarget, $Port, $null, $null)
 
+    if (-not $asyncResult.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds))) {
+        $tcpClient.Close()
+        throw "Connection to $connectTarget`:$Port timed out after $TimeoutSeconds seconds."
+    }
+
+    $tcpClient.EndConnect($asyncResult)
+
+    $sslStream = $null
     try {
-        $sslStream.AuthenticateAsClient($Hostname)
-    }
-    catch {
-        throw "TLS handshake with $Hostname failed: $($_.Exception.Message)"
-    }
-    finally {
-        if ($sslStream) {
-            $sslStream.Dispose()
+        $sslStream = New-Object System.Net.Security.SslStream($tcpClient.GetStream(), $false, $validationCallback)
+
+        try {
+            if ($attempt.UseDefault) {
+                $sslStream.AuthenticateAsClient($Hostname)
+            }
+            else {
+                $clientCertificates = New-Object System.Security.Cryptography.X509Certificates.X509CertificateCollection
+                $sslStream.AuthenticateAsClient($Hostname, $clientCertificates, $attempt.Protocol, $false)
+            }
+
+            $handshakeSucceeded = $true
+            break
+        }
+        catch {
+            $detail = $_.Exception.Message
+            if ($_.Exception.InnerException -and $_.Exception.InnerException.Message) {
+                $detail = "{0} ({1})" -f $detail, $_.Exception.InnerException.Message
+            }
+            $handshakeErrors += "[{0}] {1}" -f $attempt.Name, $detail
+        }
+        finally {
+            if ($sslStream) {
+                $sslStream.Dispose()
+            }
         }
     }
+    finally {
+        $tcpClient.Close()
+    }
 }
-finally {
-    $tcpClient.Close()
+
+if (-not $handshakeSucceeded) {
+    $attemptDetails = if ($handshakeErrors.Count -gt 0) { $handshakeErrors -join '; ' } else { 'No additional error details available.' }
+    throw "TLS handshake with $Hostname failed. Attempts: $attemptDetails"
 }
+
 
 if (-not $script:CapturedCertificate) {
     throw "No certificate was presented by $Hostname."
