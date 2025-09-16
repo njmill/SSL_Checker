@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Tests a remote HTTPS endpoint and reports on the completeness and validity of its TLS certificate chain.
 
@@ -359,12 +359,3 @@ Write-BooleanField ('Chain Complete'.PadRight($labelWidth)) $summary.ChainComple
 Write-BooleanField ('Trusted'.PadRight($labelWidth)) $summary.Trusted
 Write-BooleanField ('Expired'.PadRight($labelWidth)) $summary.Expired $false
 Write-BooleanField ('Not Yet Valid'.PadRight($labelWidth)) $summary.NotYetValid $false
-
-
-
-
-
-
-
-
-
